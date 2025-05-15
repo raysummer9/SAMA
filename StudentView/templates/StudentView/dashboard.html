@@ -1,0 +1,329 @@
+{% extends 'StudentView/base.html' %}
+{% load static %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Welcome, {{ student.name }}</h2>
+    
+    <div class="row">
+        <!-- Enrolled Courses Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Your Courses</h5>
+                </div>
+                <div class="card-body">
+                    {% if enrolled_courses %}
+                        <div class="list-group">
+                            {% for course in enrolled_courses %}
+                                <a href="#" class="list-group-item list-group-item-action" onclick="showCourseAttendance({{ course.id }})">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">{{ course.name }}</h6>
+                                            <small class="text-muted">Course Code: {{ course.code }}</small>
+                                        </div>
+                                        <i class="fas fa-chevron-right"></i>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No courses enrolled.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Attendance Modal -->
+        <div class="modal fade" id="courseAttendanceModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="courseAttendanceTitle">Course Attendance</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="courseAttendanceContent">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Lectures Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Upcoming Lectures</h5>
+                </div>
+                <div class="card-body">
+                    {% if active_sessions %}
+                        <div class="list-group">
+                            {% for session in active_sessions %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">{{ session.course.name }}</h6>
+                                            <small class="text-muted">
+                                                {{ session.date|date:"F d, Y" }} at {{ session.start_time|time:"g:i A" }}
+                                            </small>
+                                        </div>
+                                        <button class="btn btn-primary btn-sm" 
+                                                onclick="showQRScanner('{{ session.session_code }}')">
+                                            Mark Attendance
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No upcoming lectures.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Scanner Modal -->
+        <div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Scan QR Code</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="reader" style="width: 100%"></div>
+                        <div id="scan-status" class="mt-3"></div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <h6>Tips for better scanning:</h6>
+                            <ul class="mb-0">
+                                <li>Ensure good lighting</li>
+                                <li>Hold your device steady</li>
+                                <li>Keep the QR code within the frame</li>
+                                <li>Try adjusting the distance if needed</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance History Section -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Attendance History</h5>
+                </div>
+                <div class="card-body">
+                    {% if attendance_records %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Course</th>
+                                        <th>Date</th>
+                                        <th>Class Time</th>
+                                        <th>Scanned At</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in attendance_records %}
+                                    <tr>
+                                        <td>{{ record.session.course.name }}</td>
+                                        <td>{{ record.session.date }}</td>
+                                        <td>{{ record.session.start_time|time:"g:i A" }}</td>
+                                        <td>{{ record.created_at|time:"g:i A" }}</td>
+                                        <td>
+                                            {% if record.status == 'present' %}
+                                                <span class="badge bg-success">Present</span>
+                                            {% elif record.status == 'late' %}
+                                                <span class="badge bg-warning">Late</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Absent</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No attendance records found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+    let html5QrCode = null;
+    const scanStatus = document.getElementById('scan-status');
+    let currentSessionCode = null;
+
+    function showQRScanner(sessionCode) {
+        currentSessionCode = sessionCode;
+        const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
+        modal.show();
+        initializeScanner();
+    }
+
+    async function initializeScanner() {
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            if (devices && devices.length) {
+                const cameraId = devices.find(device => device.label.toLowerCase().includes('back'))?.id || devices[0].id;
+                
+                html5QrCode = new Html5Qrcode("reader");
+                
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 300, height: 300 },
+                    aspectRatio: 1.0,
+                    formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
+                    rememberLastUsedCamera: true,
+                    showTorchButtonIfSupported: true,
+                    showZoomSliderIfSupported: true,
+                    defaultZoomValueIfSupported: 2,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true
+                    }
+                };
+
+                await html5QrCode.start(
+                    cameraId,
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                );
+                
+                scanStatus.innerHTML = '<div class="alert alert-info">Camera started. Ready to scan!</div>';
+            } else {
+                scanStatus.innerHTML = '<div class="alert alert-info">Please ensure your device has a camera and you have granted permission to use it.</div>';
+            }
+        } catch (err) {
+            scanStatus.innerHTML = '<div class="alert alert-info">Please ensure your device has a camera and you have granted permission to use it.</div>';
+        }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        scanStatus.innerHTML = '<div class="alert alert-success">QR Code detected! Processing...</div>';
+        
+        if (html5QrCode) {
+            html5QrCode.stop().catch(() => {});
+        }
+        
+        let url = decodedText;
+        if (url.includes('ngrok-free.app')) {
+            url = url.replace('http://', 'https://');
+        } else if (url.includes('localhost') || url.includes('127.0.0.1')) {
+            url = url.replace('https://', 'http://');
+        }
+        
+        window.location.href = url;
+    }
+
+    function onScanFailure(error) {
+        if (error.includes("No barcode or QR code detected")) {
+            return;
+        }
+    }
+
+    // Clean up when modal is closed
+    document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', () => {
+        if (html5QrCode) {
+            html5QrCode.stop().catch(() => {});
+        }
+    });
+
+    function showCourseAttendance(courseId) {
+        const modal = new bootstrap.Modal(document.getElementById('courseAttendanceModal'));
+        const content = document.getElementById('courseAttendanceContent');
+        const title = document.getElementById('courseAttendanceTitle');
+        
+        // Show loading spinner
+        content.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Fetch attendance records
+        fetch(`/student/course-attendance/${courseId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    content.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+                
+                title.textContent = `${data.course_code} - ${data.course_name}`;
+                
+                if (data.attendance_records.length === 0) {
+                    content.innerHTML = '<p class="text-muted">No attendance records found for this course.</p>';
+                    return;
+                }
+                
+                // Create attendance records table
+                content.innerHTML = `
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.attendance_records.map(record => `
+                                    <tr>
+                                        <td>${record.date}</td>
+                                        <td>${record.time}</td>
+                                        <td>
+                                            <span class="badge ${getStatusBadgeClass(record.status)}">
+                                                ${record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                content.innerHTML = '<div class="alert alert-danger">Error loading attendance records.</div>';
+            });
+    }
+    
+    function getStatusBadgeClass(status) {
+        switch (status) {
+            case 'present':
+                return 'bg-success';
+            case 'late':
+                return 'bg-warning';
+            case 'absent':
+                return 'bg-danger';
+            default:
+                return 'bg-secondary';
+        }
+    }
+</script>
+{% endblock %} 

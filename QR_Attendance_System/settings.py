@@ -31,8 +31,13 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect(("8.8.8.8", 80))
 ip = s.getsockname()[0]
 
-ALLOWED_HOSTS = ["127.0.0.1", f"{ip}", "localhost"]
+ALLOWED_HOSTS = ['*']
 
+# Add CSRF trusted origins for ngrok
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.ngrok-free.app',
+    'http://*.ngrok-free.app',
+]
 
 # Application definition
 
@@ -55,6 +60,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "FacultyView.middleware.AuthenticationMiddleware",
 ]
 
 ROOT_URLCONF = "QR_Attendance_System.urls"
@@ -62,7 +68,7 @@ ROOT_URLCONF = "QR_Attendance_System.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -129,3 +135,14 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = 'FacultyView.FacultyUser'
+
+LOGIN_URL = 'faculty_login'
+LOGIN_REDIRECT_URL = 'faculty_dashboard'
+LOGOUT_REDIRECT_URL = 'faculty_login'
+
+# Session settings
+SESSION_COOKIE_AGE = 1800  # 30 minutes in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Reset the session expiry on every request
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Session expires when browser is closed

@@ -1,0 +1,134 @@
+{% extends 'FacultyView/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Attendance Sessions</h2>
+        <a href="{% url 'create_attendance' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create New Session
+        </a>
+    </div>
+
+    <!-- Active Sessions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Active Sessions</h5>
+        </div>
+        <div class="card-body">
+            {% if active_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Grace Period</th>
+                                <th>Present</th>
+                                <th>Late</th>
+                                <th>Absent</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in active_sessions %}
+                            <tr>
+                                <td>{{ session.course.code }}</td>
+                                <td>{{ session.date }}</td>
+                                <td>{{ session.start_time }} - {{ session.end_time }}</td>
+                                <td>{{ session.grace_period }} minutes</td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        {{ session.attendance_set.filter(status='present').count }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning">
+                                        {{ session.attendance_set.filter(status='late').count }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger">
+                                        {{ session.attendance_set.filter(status='absent').count }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'view_session' session.session_code %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <a href="{% url 'end_session' session.session_code %}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-stop"></i> End
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">No active sessions found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Expired Sessions -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Expired Sessions</h5>
+        </div>
+        <div class="card-body">
+            {% if expired_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Grace Period</th>
+                                <th>Present</th>
+                                <th>Late</th>
+                                <th>Absent</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in expired_sessions %}
+                            <tr>
+                                <td>{{ session.course.code }}</td>
+                                <td>{{ session.date }}</td>
+                                <td>{{ session.start_time }} - {{ session.end_time }}</td>
+                                <td>{{ session.grace_period }} minutes</td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        {{ session.attendance_set.filter(status='present').count }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning">
+                                        {{ session.attendance_set.filter(status='late').count }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger">
+                                        {{ session.attendance_set.filter(status='absent').count }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'view_session' session.session_code %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">No expired sessions found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

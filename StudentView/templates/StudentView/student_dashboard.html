@@ -1,0 +1,18 @@
+{% extends 'FacultyView/base.html' %}
+{% block title %}Student Dashboard{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Welcome, {{ student.name }}</h4>
+            </div>
+            <div class="card-body text-center">
+                <p>Your Matric Number: <strong>{{ student.matric_number }}</strong></p>
+                <a href="{% url 'student_mark_attendance' %}" class="btn btn-success btn-lg">Scan QR to Mark Attendance</a>
+                <a href="{% url 'student_logout' %}" class="btn btn-secondary btn-lg ms-2">Logout</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

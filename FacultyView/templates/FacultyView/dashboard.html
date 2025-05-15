@@ -1,0 +1,110 @@
+{% extends 'FacultyView/base.html' %}
+
+{% block title %}Faculty Dashboard{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Welcome, {{ user.get_full_name|default:user.email }}</h2>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Courses</h5>
+                <h2 class="card-text">{{ courses.count }}</h2>
+                <a href="{% url 'add_course' %}" class="btn btn-light btn-sm">Add Course</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Students</h5>
+                <h2 class="card-text">{{ students.count }}</h2>
+                <a href="{% url 'add_student' %}" class="btn btn-light btn-sm">Add Student</a>
+                <a href="{% url 'view_all_students' %}" class="btn btn-info btn-sm">View All Students</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Today's Attendance</h5>
+                <h2 class="card-text">{{ recent_attendance.count }}</h2>
+                <a href="{% url 'create_attendance' %}" class="btn btn-primary">Create Attendance</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Attendance</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_attendance %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Course</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in recent_attendance %}
+                            <tr>
+                                <td>{{ record.student.name }}</td>
+                                <td>{{ record.course.name }}</td>
+                                <td>
+                                    {% if record.status == 'present' %}
+                                        <span class="badge bg-success">Present</span>
+                                    {% elif record.status == 'late' %}
+                                        <span class="badge bg-warning">Late</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Absent</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ record.session.start_time|time:"g:i A" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No attendance records for today.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Your Courses</h5>
+            </div>
+            <div class="card-body">
+                {% if courses %}
+                <div class="list-group">
+                    {% for course in courses %}
+                    <a href="#" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ course.name }}</h6>
+                            <small>{{ course.code }}</small>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No courses added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
