@@ -297,9 +297,41 @@ def end_attendance_session(request, session_id):
             created_by=request.user,
             is_active=True
         )
+        
+        # Get all students enrolled in the course through the courses relationship
+        enrolled_students = Student.objects.filter(
+            courses__id=session.course.id
+        ).distinct()
+        
+        # Get students who have already marked attendance
+        marked_students = Attendance.objects.filter(
+            session=session
+        ).values_list('student_id', flat=True)
+        
+        # Find students who haven't marked attendance
+        absent_students = enrolled_students.exclude(id__in=marked_students)
+        
+        # Create absent records for students who haven't marked attendance
+        absent_records = [
+            Attendance(
+                student=student,
+                course=session.course,
+                session=session,
+                date=session.date,
+                status='absent'
+            )
+            for student in absent_students
+        ]
+        
+        # Bulk create absent records
+        if absent_records:
+            Attendance.objects.bulk_create(absent_records)
+        
+        # End the session
         session.is_active = False
         session.save()
-        messages.success(request, 'Attendance session ended successfully.')
+        
+        messages.success(request, f'Attendance session ended successfully. {len(absent_records)} students marked as absent.')
     except AttendanceSession.DoesNotExist:
         messages.error(request, 'Attendance session not found or already ended.')
     return redirect('list_attendance_sessions')
