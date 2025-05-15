@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Attendance Report</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <select name="filter" class="form-select" onchange="this.form.submit()">
+                                <option value="today" {% if filter == 'today' %}selected{% endif %}>Today</option>
+                                <option value="week" {% if filter == 'week' %}selected{% endif %}>Last 7 Days</option>
+                                <option value="month" {% if filter == 'month' %}selected{% endif %}>Last Month</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="course" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Courses</option>
+                                {% for course in courses %}
+                                    <option value="{{ course.id }}" {% if selected_course == course.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ course.code }} - {{ course.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="student" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Students</option>
+                                {% for student in students %}
+                                    <option value="{{ student.id }}" {% if selected_student == student.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ student.name }} ({{ student.matric_number }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="status" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                <option value="present" {% if selected_status == 'present' %}selected{% endif %}>Present</option>
+                                <option value="late" {% if selected_status == 'late' %}selected{% endif %}>Late</option>
+                                <option value="absent" {% if selected_status == 'absent' %}selected{% endif %}>Absent</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <a href="?{% if filter %}filter={{ filter }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}&export=csv" class="btn btn-success w-100">
+                                <i class="fas fa-download"></i> Export CSV
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Report Table -->
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Matric Number</th>
+                            <th>Course</th>
+                            <th>Date</th>
+                            <th>Lecture Time</th>
+                            <th>Scan Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in attendance_records %}
+                        <tr>
+                            <td>{{ record.student.name }}</td>
+                            <td>{{ record.student.matric_number }}</td>
+                            <td>{{ record.course.code }} - {{ record.course.name }}</td>
+                            <td>{{ record.date }}</td>
+                            <td>{{ record.session.start_time|time:"g:i A" }}</td>
+                            <td>{{ record.created_at|time:"g:i A" }}</td>
+                            <td>
+                                {% if record.status == 'present' %}
+                                    <span class="badge bg-success">Present</span>
+                                {% elif record.status == 'late' %}
+                                    <span class="badge bg-warning">Late</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Absent</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No attendance records found for the selected filters.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if attendance_records.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if attendance_records.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if filter %}&filter={{ filter }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ attendance_records.previous_page_number }}{% if filter %}&filter={{ filter }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in attendance_records.paginator.page_range %}
+                        {% if attendance_records.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > attendance_records.number|add:'-3' and num < attendance_records.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if filter %}&filter={{ filter }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if attendance_records.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ attendance_records.next_page_number }}{% if filter %}&filter={{ filter }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ attendance_records.paginator.num_pages }}{% if filter %}&filter={{ filter }}{% endif %}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

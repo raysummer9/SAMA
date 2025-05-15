@@ -6,6 +6,8 @@ from django.core.validators import (
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 import uuid
+import random
+import string
 
 
 class Section(models.Model):
@@ -64,16 +66,28 @@ class Student(models.Model):
         return f"{self.name} ({self.matric_number})"
 
 
+def generate_session_code(course_code):
+    # Generate 4 random alphanumeric characters
+    random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    # Combine course code and random chars
+    return f"{course_code}-{random_chars}"
+
+
 class AttendanceSession(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
     grace_period = models.IntegerField(default=15, help_text="Grace period in minutes after start time")
-    session_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    session_code = models.CharField(max_length=20, unique=True, editable=False)
     created_by = models.ForeignKey(FacultyUser, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
+
+    def save(self, *args, **kwargs):
+        if not self.session_code:
+            self.session_code = generate_session_code(self.course.code)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.course.code} - {self.date} ({self.start_time} to {self.end_time})"

@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse
 from .models import Student, FacultyUser, Course, Attendance, AttendanceSession
 from StudentView.views import present
@@ -8,9 +8,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from .forms import FacultyLoginForm, StudentRegistrationForm, CourseForm, AttendanceForm, AttendanceSessionForm
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
 import qrcode
 import socket
 import os
+import csv
 
 
 def qrgenerator():
@@ -369,3 +372,166 @@ def remove_student(request, student_id):
         messages.error(request, 'Invalid request method.')
     
     return redirect('view_all_students')
+
+
+@login_required
+def attendance_report(request):
+    # Get filter parameters
+    filter_type = request.GET.get('filter', 'today')
+    course_id = request.GET.get('course')
+    student_id = request.GET.get('student')
+    status = request.GET.get('status')
+    
+    # Get base queryset for the faculty's courses
+    base_queryset = Attendance.objects.filter(
+        course__faculty=request.user,
+        session__isnull=False  # Only include records from actual sessions
+    ).select_related('student', 'course', 'session')
+    
+    # Apply date filtering
+    today = timezone.now().date()
+    if filter_type == 'today':
+        queryset = base_queryset.filter(date=today)
+    elif filter_type == 'week':
+        week_ago = today - timedelta(days=7)
+        queryset = base_queryset.filter(date__gte=week_ago)
+    elif filter_type == 'month':
+        month_ago = today - timedelta(days=30)
+        queryset = base_queryset.filter(date__gte=month_ago)
+    else:
+        queryset = base_queryset
+    
+    # Apply additional filters
+    if course_id:
+        queryset = queryset.filter(course_id=course_id)
+    if student_id:
+        queryset = queryset.filter(student_id=student_id)
+    if status:
+        queryset = queryset.filter(status=status)
+    
+    # Order by date and time
+    queryset = queryset.order_by('-date', '-created_at')
+    
+    # Get filter options for the template
+    courses = Course.objects.filter(faculty=request.user).order_by('code')
+    students = Student.objects.filter(
+        courses__faculty=request.user
+    ).distinct().order_by('name')
+    
+    # Handle CSV export
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="attendance_report_{filter_type}_{today}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Student Name', 'Matric Number', 'Course', 'Date', 'Lecture Time', 'Scan Time', 'Status'])
+        
+        for record in queryset:
+            writer.writerow([
+                record.student.name,
+                record.student.matric_number,
+                f"{record.course.code} - {record.course.name}",
+                record.date,
+                record.session.start_time.strftime('%I:%M %p'),
+                record.created_at.strftime('%I:%M %p'),
+                record.status.capitalize()
+            ])
+        
+        return response
+    
+    # Pagination for web view
+    paginator = Paginator(queryset, 7)  # 7 records per page
+    page_number = request.GET.get('page', 1)
+    attendance_records = paginator.get_page(page_number)
+    
+    context = {
+        'attendance_records': attendance_records,
+        'filter': filter_type,
+        'courses': courses,
+        'students': students,
+        'selected_course': course_id,
+        'selected_student': student_id,
+        'selected_status': status,
+    }
+    return render(request, 'FacultyView/attendance_report.html', context)
+
+
+@login_required
+def student_attendance_report(request, student_id):
+    try:
+        student = Student.objects.get(id=student_id)
+        
+        # Get all attendance records for this student in the faculty's courses
+        attendance_records = Attendance.objects.filter(
+            student=student,
+            course__faculty=request.user,
+            session__isnull=False  # Only include records from actual sessions
+        ).select_related('course', 'session')
+        
+        # Calculate attendance statistics
+        total_classes = attendance_records.count()
+        present_count = attendance_records.filter(status='present').count()
+        late_count = attendance_records.filter(status='late').count()
+        absent_count = attendance_records.filter(status='absent').count()
+        
+        # Calculate attendance percentage (present + late count as attendance)
+        attendance_percentage = ((present_count + late_count) / total_classes * 100) if total_classes > 0 else 0
+        
+        # Determine attendance status
+        if attendance_percentage >= 90:
+            status = 'Elite'
+            status_class = 'success'
+        elif attendance_percentage >= 60:
+            status = 'Good'
+            status_class = 'info'
+        else:
+            status = 'Bad'
+            status_class = 'danger'
+        
+        # Get course-wise statistics
+        course_stats = {}
+        for record in attendance_records:
+            course = record.course
+            if course not in course_stats:
+                course_stats[course] = {
+                    'total': 0,
+                    'present': 0,
+                    'late': 0,
+                    'absent': 0,
+                    'present_percentage': 0,
+                    'late_percentage': 0,
+                    'absent_percentage': 0,
+                    'attendance_percentage': 0
+                }
+            
+            course_stats[course]['total'] += 1
+            # Safely increment the status count
+            record_status = getattr(record, 'status', 'absent')  # Default to 'absent' if status is not set
+            if record_status in ['present', 'late', 'absent']:
+                course_stats[course][record_status] += 1
+        
+        # Calculate percentages for each course
+        for course in course_stats:
+            stats = course_stats[course]
+            total = stats['total']
+            if total > 0:
+                stats['present_percentage'] = (stats['present'] / total * 100)
+                stats['late_percentage'] = (stats['late'] / total * 100)
+                stats['absent_percentage'] = (stats['absent'] / total * 100)
+                stats['attendance_percentage'] = ((stats['present'] + stats['late']) / total * 100)
+        
+        context = {
+            'student': student,
+            'total_classes': total_classes,
+            'present_count': present_count,
+            'late_count': late_count,
+            'absent_count': absent_count,
+            'attendance_percentage': round(attendance_percentage, 1),
+            'status': status,
+            'status_class': status_class,
+            'course_stats': course_stats,
+        }
+        return render(request, 'FacultyView/student_attendance_report.html', context)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student not found.')
+        return redirect('faculty_dashboard')

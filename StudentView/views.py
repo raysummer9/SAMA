@@ -66,7 +66,8 @@ def get_course_attendance(request, course_id):
                 {
                     'date': record.date.strftime('%B %d, %Y'),
                     'time': record.session.start_time.strftime('%I:%M %p') if record.session else 'N/A',
-                    'status': record.status
+                    'status': record.status,
+                    'session_id': record.session.session_code if record.session else 'N/A'
                 }
                 for record in attendance_records
             ]
@@ -191,3 +192,85 @@ def mark_attendance(request, session_code):
     except Exception as e:
         messages.error(request, f'Error marking attendance: {str(e)}')
         return redirect('student_dashboard')
+
+def student_attendance_report(request):
+    student_id = request.session.get('student_id')
+    if not student_id:
+        messages.warning(request, 'Please log in to access the attendance report.')
+        return redirect('student_login')
+    
+    try:
+        student = Student.objects.get(id=student_id)
+        
+        # Get all attendance records for this student
+        attendance_records = Attendance.objects.filter(
+            student=student,
+            session__isnull=False  # Only include records from actual sessions
+        ).select_related('course', 'session')
+        
+        # Calculate attendance statistics
+        total_classes = attendance_records.count()
+        present_count = attendance_records.filter(status='present').count()
+        late_count = attendance_records.filter(status='late').count()
+        absent_count = attendance_records.filter(status='absent').count()
+        
+        # Calculate attendance percentage (present + late count as attendance)
+        attendance_percentage = ((present_count + late_count) / total_classes * 100) if total_classes > 0 else 0
+        
+        # Determine attendance status
+        if attendance_percentage >= 90:
+            status = 'Elite'
+            status_class = 'success'
+        elif attendance_percentage >= 60:
+            status = 'Good'
+            status_class = 'info'
+        else:
+            status = 'Bad'
+            status_class = 'danger'
+        
+        # Get course-wise statistics
+        course_stats = {}
+        for record in attendance_records:
+            course = record.course
+            if course not in course_stats:
+                course_stats[course] = {
+                    'total': 0,
+                    'present': 0,
+                    'late': 0,
+                    'absent': 0,
+                    'present_percentage': 0,
+                    'late_percentage': 0,
+                    'absent_percentage': 0,
+                    'attendance_percentage': 0
+                }
+            
+            course_stats[course]['total'] += 1
+            # Safely increment the status count
+            record_status = getattr(record, 'status', 'absent')  # Default to 'absent' if status is not set
+            if record_status in ['present', 'late', 'absent']:
+                course_stats[course][record_status] += 1
+        
+        # Calculate percentages for each course
+        for course in course_stats:
+            stats = course_stats[course]
+            total = stats['total']
+            if total > 0:
+                stats['present_percentage'] = (stats['present'] / total * 100)
+                stats['late_percentage'] = (stats['late'] / total * 100)
+                stats['absent_percentage'] = (stats['absent'] / total * 100)
+                stats['attendance_percentage'] = ((stats['present'] + stats['late']) / total * 100)
+        
+        context = {
+            'total_classes': total_classes,
+            'present_count': present_count,
+            'late_count': late_count,
+            'absent_count': absent_count,
+            'attendance_percentage': round(attendance_percentage, 1),
+            'status': status,
+            'status_class': status_class,
+            'course_stats': course_stats,
+        }
+        return render(request, 'StudentView/attendance_report.html', context)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student not found.')
+        return redirect('student_login')

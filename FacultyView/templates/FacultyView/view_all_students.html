@@ -39,14 +39,12 @@
                                     <td>{{ student.matric_number }}</td>
                                     <td>{{ student.email }}</td>
                                     <td>
-                                        <form method="POST" action="{% url 'remove_student' student.id %}" style="display: inline;">
+                                        <a href="{% url 'student_attendance_report' student.id %}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-chart-bar"></i> View Report
+                                        </a>
+                                        <form method="post" action="{% url 'remove_student' student.id %}" class="d-inline">
                                             {% csrf_token %}
-                                            <button type="button" 
-                                                    class="btn btn-danger btn-sm" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#removeConfirmModal"
-                                                    data-student-id="{{ student.id }}"
-                                                    data-student-name="{{ student.name }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">
                                                 <i class="fas fa-trash"></i> Remove
                                             </button>
                                         </form>

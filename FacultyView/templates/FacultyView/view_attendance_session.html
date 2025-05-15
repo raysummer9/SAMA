@@ -20,6 +20,10 @@
                                     <td>{{ session.course.name }} ({{ session.course.code }})</td>
                                 </tr>
                                 <tr>
+                                    <th>Session ID:</th>
+                                    <td><code>{{ session.session_code }}</code></td>
+                                </tr>
+                                <tr>
                                     <th>Date:</th>
                                     <td>{{ session.date }}</td>
                                 </tr>
@@ -67,8 +71,10 @@
                                                 <td>{{ record.student.name }}</td>
                                                 <td>{{ record.student.matric_number }}</td>
                                                 <td>
-                                                    {% if record.status %}
+                                                    {% if record.status == 'present' %}
                                                         <span class="badge bg-success">Present</span>
+                                                    {% elif record.status == 'late' %}
+                                                        <span class="badge bg-warning">Late</span>
                                                     {% else %}
                                                         <span class="badge bg-danger">Absent</span>
                                                     {% endif %}
