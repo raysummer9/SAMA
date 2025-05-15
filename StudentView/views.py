@@ -140,13 +140,14 @@ def mark_attendance(request, session_code):
             messages.warning(request, 'You have already marked attendance for this session.')
             return redirect('student_dashboard')
         
-        # Get current time in the same timezone as the session
-        now = timezone.now()
+        # Get current time in the local timezone
+        now = timezone.localtime(timezone.now())
         
         # Convert session times to datetime for comparison
         session_date = session.date
         start_datetime = timezone.make_aware(
-            datetime.combine(session_date, session.start_time)
+            datetime.combine(session_date, session.start_time),
+            timezone=timezone.get_current_timezone()
         )
         grace_end_datetime = start_datetime + timedelta(minutes=session.grace_period)
         
